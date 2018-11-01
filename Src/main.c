@@ -62,6 +62,7 @@ static void MX_GPIO_Init(void);
 /* USER CODE BEGIN 0 */
 
 #define DEBOUCING_PERIOD 15
+#define DELAY_PERIOD 500
 
 typedef enum {
   LED_OFF,
@@ -89,6 +90,13 @@ struct LedButtonInfo
 {
   LedState currentLedState;
   ButtonState previousButtonState;
+};
+
+typedef struct LedInfo LedInfo;
+struct LedInfo
+{
+	LedState ledState;
+	uint32_t tick;
 };
 
 ButtonState getButtonState(Button *button){
@@ -152,6 +160,44 @@ void turnLed(LedState ledState){
 
 }
 
+void turnLedRed(LedState ledState){
+	if(ledState == LED_ON){
+		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_SET);
+	}
+	else{
+		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
+	}
+
+}
+
+void blinkInit(LedInfo *ledInfo){
+	HAL_GPIO_WritePin(LED4_GPIO_Port, LED4_Pin, GPIO_PIN_RESET);
+	ledInfo->ledState = LED_OFF;
+	ledInfo->tick = HAL_GetTick();
+
+}
+
+void doBlinking(LedInfo *ledInfo){
+
+	switch(ledInfo->ledState){
+	case LED_OFF:
+		if(HAL_GetTick() > ledInfo->tick + DELAY_PERIOD){
+			ledInfo->ledState = LED_ON;
+			turnLedRed(ledInfo->ledState);
+			ledInfo->tick = HAL_GetTick();
+		}
+
+	break;
+	case LED_ON:
+		if(HAL_GetTick() > ledInfo->tick + DELAY_PERIOD){
+			ledInfo->ledState = LED_OFF;
+			turnLedRed(ledInfo->ledState);
+			ledInfo->tick = HAL_GetTick();
+		}
+	break;
+	}
+
+}
 
 void doTapTurnOnTapTurnOffLed(LedButtonInfo *state, Button *Button)
 {
@@ -254,10 +300,13 @@ int main(void)
   /* USER CODE BEGIN 1 */
 	Button button ;
 	LedButtonInfo state ;
-
+	LedInfo ledInfo;
+	LedInfo *ledInfoPtr;
+	ledInfoPtr = & ledInfo;
 
 	buttonInit(&button);
 	ledButtonInfoInit(&state);
+	blinkInit(ledInfoPtr);
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/
@@ -289,6 +338,7 @@ int main(void)
   {
 	  doTapTurnOnTapTurnOffLed(&state, &button);
 	  handleButton(&button);
+	  doBlinking(ledInfoPtr);
 
   /* USER CODE END WHILE */
 
@@ -379,7 +429,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOG_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LED4_GPIO_Port, LED4_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOG, LED3_Pin|LED4_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : Button_Pin */
   GPIO_InitStruct.Pin = Button_Pin;
@@ -387,12 +437,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(Button_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LED4_Pin */
-  GPIO_InitStruct.Pin = LED4_Pin;
+  /*Configure GPIO pins : LED3_Pin LED4_Pin */
+  GPIO_InitStruct.Pin = LED3_Pin|LED4_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LED4_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
 
 }
 

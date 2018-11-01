@@ -61,6 +61,8 @@ static void MX_GPIO_Init(void);
 
 /* USER CODE BEGIN 0 */
 
+#define DEBOUCING_PERIOD 15
+#define DELAY_PERIOD 500
 
 typedef enum {
   LED_OFF,
@@ -90,6 +92,13 @@ struct LedButtonInfo
   ButtonState previousButtonState;
 };
 
+typedef struct LedInfo LedInfo;
+struct LedInfo
+{
+	LedState ledState;
+	uint32_t tick;
+};
+
 ButtonState getButtonState(Button *button){
 	return button->State;
 }
@@ -105,7 +114,7 @@ void handleButton(Button *button){
 			break;
 
 		case BUTTON_PRESSED_DEBOUNCING :
-			if(HAL_GetTick() > button->prevTick + 100){
+			if(HAL_GetTick() > button->prevTick + DEBOUCING_PERIOD){
 				if(HAL_GPIO_ReadPin(Button_GPIO_Port, Button_Pin)){
 					button->State = BUTTON_PRESSED;
 					button-> buttonState = BUTTON_PRESSED;
@@ -125,7 +134,7 @@ void handleButton(Button *button){
 			break;
 
 		case BUTTON_RELEASED_DEBOUNCING :
-			if(HAL_GetTick() > button->prevTick + 100){
+			if(HAL_GetTick() > button->prevTick + DEBOUCING_PERIOD){
 				if(!HAL_GPIO_ReadPin(Button_GPIO_Port, Button_Pin)){
 					button->State = BUTTON_RELEASED;
 					button-> buttonState = BUTTON_RELEASED;
@@ -151,6 +160,44 @@ void turnLed(LedState ledState){
 
 }
 
+void turnLedRed(LedState ledState){
+	if(ledState == LED_ON){
+		HAL_GPIO_WritePin(LED4_GPIO_Port, LED4_Pin, GPIO_PIN_SET);
+	}
+	else{
+		HAL_GPIO_WritePin(LED4_GPIO_Port, LED4_Pin, GPIO_PIN_RESET);
+	}
+
+}
+
+void blinkInit(LedInfo *ledInfo){
+	HAL_GPIO_WritePin(LED4_GPIO_Port, LED4_Pin, GPIO_PIN_RESET);
+	ledInfo->ledState = LED_OFF;
+	ledInfo->tick = HAL_GetTick();
+
+}
+
+void doBlinking(LedInfo *ledInfo){
+
+	switch(ledInfo->ledState){
+	case LED_OFF:
+		if(HAL_GetTick() > ledInfo->tick + DELAY_PERIOD){
+			ledInfo->ledState = LED_ON;
+			turnLed(ledInfo->ledState);
+			ledInfo->tick = HAL_GetTick();
+		}
+
+	break;
+	case LED_ON:
+		if(HAL_GetTick() > ledInfo->tick + DELAY_PERIOD){
+			ledInfo->ledState = LED_OFF;
+			turnLed(ledInfo->ledState);
+			ledInfo->tick = HAL_GetTick();
+		}
+	break;
+	}
+
+}
 
 void doTapTurnOnTapTurnOffLed(LedButtonInfo *state, Button *Button)
 {
@@ -253,11 +300,14 @@ int main(void)
   /* USER CODE BEGIN 1 */
 	Button button ;
 	LedButtonInfo state ;
-
+	LedInfo ledInfo;
+	LedInfo *ledInfoPtr;
+	ledInfoPtr = & ledInfo;
 
 	buttonInit(&button);
 	ledButtonInfoInit(&state);
-  /* USER CODE END 1 */
+	blinkInit(ledInfoPtr);
+	/* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/
 
@@ -288,6 +338,7 @@ int main(void)
   {
 	  doTapTurnOnTapTurnOffLed(&state, &button);
 	  handleButton(&button);
+	  doBlinking(ledInfoPtr);
 
   /* USER CODE END WHILE */
 
