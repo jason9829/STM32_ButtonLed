@@ -61,14 +61,15 @@ static void MX_GPIO_Init(void);
 
 /* USER CODE BEGIN 0 */
 
+#define DEBOUCING_PERIOD 15
 
 typedef enum {
   LED_OFF,
   LED_ON,
 } LedState;
 
-typedef enum buttonState buttonState;
-enum buttonState{
+typedef enum ButtonState ButtonState;
+enum ButtonState{
 	BUTTON_PRESSED,
 	BUTTON_PRESSED_DEBOUNCING,
 	BUTTON_RELEASED,
@@ -78,27 +79,26 @@ enum buttonState{
 
 typedef struct Button Button;
 struct Button{
-	buttonState ButtonState;
+	ButtonState buttonState;	// To keep the state of the Button
 	uint32_t prevTick;
-	buttonState State;
+	ButtonState State;			// The state machine for buttonHandler (handleButton)
 };
 
 typedef struct LedButtonInfo LedButtonInfo;
 struct LedButtonInfo
 {
   LedState currentLedState;
-  buttonState previousButtonState;
+  ButtonState previousButtonState;
 };
 
-buttonState getButtonState(Button *button){
+ButtonState getButtonState(Button *button){
 	return button->State;
 }
 
 void handleButton(Button *button){
-	button->State = BUTTON_PRESSED_DEBOUNCING;
 	switch(button->State){
 		case BUTTON_RELEASED :
-			button-> ButtonState = BUTTON_RELEASED;
+			//button-> buttonState = BUTTON_RELEASED;
 			if(HAL_GPIO_ReadPin(Button_GPIO_Port, Button_Pin)){
 				button->prevTick = HAL_GetTick();
 				button->State = BUTTON_PRESSED_DEBOUNCING;
@@ -106,14 +106,14 @@ void handleButton(Button *button){
 			break;
 
 		case BUTTON_PRESSED_DEBOUNCING :
-			if(HAL_GetTick() > button->prevTick + 100){
+			if(HAL_GetTick() > button->prevTick + DEBOUCING_PERIOD){
 				if(HAL_GPIO_ReadPin(Button_GPIO_Port, Button_Pin)){
 					button->State = BUTTON_PRESSED;
-					button-> ButtonState = BUTTON_PRESSED;
+					button-> buttonState = BUTTON_PRESSED;
 				}
 				else{
 					button->State = BUTTON_RELEASED;
-					button-> ButtonState = BUTTON_RELEASED;
+					button-> buttonState = BUTTON_RELEASED;
 				}
 			}
 			break;
@@ -126,20 +126,18 @@ void handleButton(Button *button){
 			break;
 
 		case BUTTON_RELEASED_DEBOUNCING :
-			if(HAL_GetTick() > button->prevTick + 100){
+			if(HAL_GetTick() > button->prevTick + DEBOUCING_PERIOD){
 				if(!HAL_GPIO_ReadPin(Button_GPIO_Port, Button_Pin)){
 					button->State = BUTTON_RELEASED;
-					button-> ButtonState = BUTTON_RELEASED;
+					button-> buttonState = BUTTON_RELEASED;
 				}
 				else{
 					button->State = BUTTON_PRESSED;
-					button-> ButtonState = BUTTON_PRESSED;
+					button-> buttonState = BUTTON_PRESSED;
 				}
 			}
 			break;
 		default: break;
-
-
 
 	}
 }
@@ -153,6 +151,7 @@ void turnLed(LedState ledState){
 	}
 
 }
+
 
 void doTapTurnOnTapTurnOffLed(LedButtonInfo *state, Button *Button)
 {
@@ -229,11 +228,11 @@ void doTapTurnOnTapTurnOffLed(LedButtonInfo *state, Button *Button)
 void buttonInit(Button *button){
 	if(HAL_GPIO_ReadPin(Button_GPIO_Port, Button_Pin)){
 		button->State = BUTTON_PRESSED;
-		button->ButtonState = BUTTON_PRESSED;
+		button->buttonState = BUTTON_PRESSED;
 	}
 	else{
 		button->State = BUTTON_RELEASED;
-		button->ButtonState = BUTTON_RELEASED;
+		button->buttonState = BUTTON_RELEASED;
 	}
 	button->prevTick = 0;
 }
@@ -253,12 +252,12 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-	Button *button = NULL;
-	LedButtonInfo *state = NULL;
+	Button button ;
+	LedButtonInfo state ;
 
 
-	buttonInit(button);
-	ledButtonInfoInit(state);
+	buttonInit(&button);
+	ledButtonInfoInit(&state);
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/
@@ -288,8 +287,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  doTapTurnOnTapTurnOffLed(state, button);
-	  handleButton(button);
+	  doTapTurnOnTapTurnOffLed(&state, &button);
+	  handleButton(&button);
 
   /* USER CODE END WHILE */
 
