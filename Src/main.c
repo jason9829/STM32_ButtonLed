@@ -160,6 +160,7 @@ void turnLed(LedState ledState){
 
 }
 
+// Green LED mistake
 void turnLedRed(LedState ledState){
 	if(ledState == LED_ON){
 		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_SET);
